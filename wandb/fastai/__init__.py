@@ -230,3 +230,20 @@ class WandbCallback(TrackerCallback):
 
 class FastaiError(wandb.Error):
     pass
+
+class MyTrackerCallback(TrackerCallback):
+    "need to add user-defined metrics into watch list"
+    metric_names = self.learn.recorder.metrics_names
+    def get_monitor_value(self, metric_name):
+        "Pick the monitored value."
+        if self.monitor=='trn_loss' and len(self.learn.recorder.losses) == 0: return None
+        elif len(self.learn.recorder.val_losses) == 0: return None
+        values = {'train_loss':self.learn.recorder.losses[-1].cpu().numpy(),
+                  'valid_loss':self.learn.recorder.val_losses[-1]}
+        if values['valid_loss'] is None: return
+        if self.learn.recorder.metrics:
+            for m, n in zip(self.learn.recorder.metrics[-1],self.learn.recorder.names[3:-1]):
+                values[n] = m
+        if values.get(self.monitor) is None:
+            warn(f'{self.__class__} conditioned on metric `{self.monitor}` which is not available. Available metrics are: {", ".join(map(str, self.learn.recorder.names[1:-1]))}')
+        return values.get(self.monitor)
